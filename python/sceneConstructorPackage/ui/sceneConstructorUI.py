@@ -25,7 +25,34 @@ class sceneConstructor(QtWidgets.QWidget):
         self.position = QtCore.QPointF(0, 0)
 
         # --- Styling (omitted for brevity, remains the same) ---
-        self.setStyleSheet("""...""")
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #333;
+                color: #DDD;
+                font-size: 14px;
+            }
+            QTreeWidget {
+                background-color: #2b2b2b;
+                border: 1px solid #555;
+            }
+            QHeaderView::section {
+                background-color: #444;
+                padding: 4px;
+                border: 1px solid #555;
+            }
+            QPushButton {
+                background-color: #5a5a5a;
+                border: 1px solid #777;
+                padding: 5px 10px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #6a6a6a;
+            }
+            QLabel {
+                font-weight: bold;
+            }
+        """)
 
         # ========== Layout ==========
         main_layout = QtWidgets.QHBoxLayout(self)
