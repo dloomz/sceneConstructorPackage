@@ -1,0 +1,30 @@
+{
+    "shot_001": [
+        {
+            "type": "character",
+            "name": "Bob",
+            "path": "/job/bob"
+        },
+        {
+            "type": "character",
+            "name": "Anne",
+            "path": "/job/anne"
+        },
+        {
+            "type": "prop",
+            "name": "Pear",
+            "path": "/job/pear"
+        },
+        {
+            "type": "set",
+            "name": "Classroom",
+            "path": "/job/class"
+        },
+        {
+            "type": "camera",
+            "name": "Camera01",
+            "path": "/job/pipeline/dev/sandbox/sandbox_dokuboyejo/work/dokuboyejo/houdini/hip",
+            "shot": "abc123"
+        }
+    ]
+}

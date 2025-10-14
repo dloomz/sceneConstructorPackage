@@ -1,0 +1,44 @@
+[
+    {
+        "type": "camera",
+        "name": "Camera01",
+        "path": "/job/pipeline/dev/sandbox/sandbox_dokuboyejo/work/dokuboyejo/houdini/hip",
+        "shot": "abc123"
+    },
+    {
+        "type": "camera",
+        "name": "Camera02",
+        "path": "/job/pipeline/dev/sandbox/sandbox_dokuboyejo/work/dokuboyejo/houdini/geo",
+        "shot": "def456"
+    },
+    {
+        "type": "character",
+        "name": "Bob",
+        "path": "/job/pipeline/dev/sandbox/sandbox_dokuboyejo/work/dokuboyejo/maya/scenes/character/Bob.mb"
+    },
+    {
+        "type": "character",
+        "name": "Anne",
+        "path": "/job/anne"
+    },
+    {
+        "type": "prop",
+        "name": "Apple",
+        "path": "/job/apple"
+    },
+    {
+        "type": "prop",
+        "name": "Orange",
+        "path": "/job/orange"
+    },
+    {
+        "type": "prop",
+        "name": "Pear",
+        "path": "/job/pear"
+    },
+    {
+        "type": "set",
+        "name": "Classroom",
+        "path": "/job/class"
+    }
+]
