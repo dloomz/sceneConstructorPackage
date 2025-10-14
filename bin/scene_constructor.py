@@ -25,12 +25,12 @@ from sceneConstructorPackage.ui.sceneConstructorUI import sceneConstructor
 def run_ui():
     print('Launching Scene Constructor UI')
 
-    # Set the modern High-DPI scaling policy BEFORE creating the app instance
+    # This must be the VERY FIRST Qt call.
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
 
-    # Check if a QApplication instance already exists (common in Maya/other hosts)
+    # Now, check for or create the application instance.
     app = QtWidgets.QApplication.instance()
     if not app:
         app = QtWidgets.QApplication(sys.argv)
