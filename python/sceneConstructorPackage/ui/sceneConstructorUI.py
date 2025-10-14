@@ -7,7 +7,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from shiboken6 import wrapInstance
 
 # Path: sceneConstructorPackage/python/sceneConstructorPackage/ui/sceneConstructorUI.py
-from ...core.data_manager import DataManager 
+from sceneConstructorPackage.core.data_manager import DataManager 
 from ..utils.fileUtils import open_in_native_explorer # 🆕 Renamed import
 
 # -------- Scene Constructor UI --------

@@ -7,9 +7,8 @@ from PySide6 import QtWidgets, QtCore, QtGui
 import maya.cmds as cmds
 
 # Path: sceneConstructorPackage/python/sceneConstructorPackage/ui/actorPublisherUI.py
-from ...core.data_manager import DataManager 
-from .... import config
-
+from sceneConstructorPackage.core.data_manager import DataManager
+from sceneConstructorPackage import config
 # close existing window if re-run
 try:
     for widget in QtWidgets.QApplication.allWidgets():

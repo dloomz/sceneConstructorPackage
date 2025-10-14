@@ -3,7 +3,7 @@ import os
 import json
 
 # Path: sceneConstructorPackage/python/sceneConstructorPackage/utils/shotLoaderUI.py
-from ...core.data_manager import DataManager 
+from sceneConstructorPackage.core.data_manager import DataManager
 
 class ShotLoaderUI(object):
     def __init__(self):
