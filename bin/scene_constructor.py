@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-### NEW ###
 import os
 from pathlib import Path
 
-### NEW ###
 # Resolve the path to the 'python' directory containing sceneConstructorPackage
 script_dir = Path(__file__).resolve().parent 
 package_path = str(script_dir.parent / 'python') 
@@ -25,22 +23,22 @@ from sceneConstructorPackage.ui.sceneConstructorUI import sceneConstructor
 def run_ui():
     print('Launching Scene Constructor UI')
 
-    # This must be the VERY FIRST Qt call.
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
-
-    # Now, check for or create the application instance.
+    
+    app_created = False
     app = QtWidgets.QApplication.instance()
     if not app:
         app = QtWidgets.QApplication(sys.argv)
+        app_created = True 
 
     # Launch the main window
     window = sceneConstructor()
     window.show()
 
-    # Only start the event loop if we created the QApplication instance
-    if app and app.startingUp():
+    # This keeps the window open.
+    if app_created:
         sys.exit(app.exec())
 
 if __name__ == '__main__':
