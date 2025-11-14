@@ -1,0 +1,8 @@
+# testing
+pytest
+pylint
+flake8
+
+# docs
+sphinx
+sphinx-rtd-theme
