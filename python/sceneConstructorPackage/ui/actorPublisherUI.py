@@ -1,5 +1,7 @@
-# Path: python/sceneConstructorPackage/ui/actorPublisherUI.py
-
+import os
+import json
+import tempfile
+from datetime import datetime
 from PySide6 import QtWidgets, QtCore, QtGui
 import maya.cmds as cmds
 
@@ -34,6 +36,7 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
         self.auto_set_version()
         self.refresh_snapshot()
         self.refresh_selection()
+        self.refresh_update_tree()
         cmds.scriptJob(event=["SelectionChanged", self.refresh_selection], protected=True)
 
     def build_ui(self):
@@ -90,6 +93,7 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
 
         # Publish Button
         self.update_publish_button = QtWidgets.QPushButton("Publish New Version")
+        self.update_publish_button.setEnabled(False)
         self.update_publish_button.clicked.connect(self.publish_action)
         self.update_publish_button.setFixedHeight(40)
         self.update_publish_button.setStyleSheet("background-color: #007acc; font-weight: bold;")
@@ -103,7 +107,7 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
         update_main_layout.addLayout(update_left_layout, 1)
         update_main_layout.addLayout(update_right_layout, 1)
         
-        self.tab_widget.addTab(update_tab, "Update Existing"
+        self.tab_widget.addTab(update_tab, "Update Existing")
 
         #TAB 2: NEW ACTOR
         new_tab = QtWidgets.QWidget()
@@ -190,9 +194,59 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
         # --- Connect signals ---
         self.actor_name_line.textChanged.connect(self.auto_set_version)
         self.dept_dropdown.currentTextChanged.connect(self.auto_set_version)
+    
+    def refresh_update_tree(self):
+        """Loads all actors from the data manager and populates the update tree."""
+        
+        print("Refreshing asset tree...")
+        self.update_asset_tree.clear()
+        
+        try:
+            #load  actors using the DataManager
+            all_actors = self.data_manager.load_actors()
+        except Exception as e:
+            print(f"Failed to load actors: {e}")
+            return
+
+        category_items = {} #group by type
+        asset_name_items = {} #group by asset name
+
+        for actor_data in all_actors:
+            actor_type = actor_data.get('type', 'unknown')
+            asset_name = actor_data.get('name', 'Unknown')
+            department = actor_data.get('department', 'unknown')
+
+            #get/create type 
+            parent_category = category_items.get(actor_type)
+            if not parent_category:
+                parent_category = QtWidgets.QTreeWidgetItem([actor_type.capitalize()])
+                self.update_asset_tree.addTopLevelItem(parent_category)
+                category_items[actor_type] = parent_category
+
+            #get/create asset name
+            asset_key = (actor_type, asset_name)
+            parent_asset_item = asset_name_items.get(asset_key)
+            if not parent_asset_item:
+                parent_asset_item = QtWidgets.QTreeWidgetItem([asset_name])
+                #store minimal data on the asset group
+                parent_asset_item.setData(0, QtCore.Qt.UserRole, {"is_group": True, "name": asset_name})
+                parent_category.addChild(parent_asset_item)
+                asset_name_items[asset_key] = parent_asset_item
+            
+            #add department item 
+            version_str = actor_data.get('version', 'N/A')
+            dept_item_name = f"{department.upper()} ({version_str})"
+            dept_item = QtWidgets.QTreeWidgetItem([dept_item_name])
+            
+            #store the full data dict on this item
+            dept_item.setData(0, QtCore.Qt.UserRole, actor_data) 
+            parent_asset_item.addChild(dept_item)
+
+        self.update_asset_tree.expandAll()
+        print(f"Found and added {len(all_actors)} asset departments.")
 
     def auto_set_version(self):
-        # Scans the specific actor/dept folder for the next version
+        #scans the specific actor/dept folder for the next version
         actor_name = self.actor_name_line.text().strip()
         department = self.dept_dropdown.currentText()
         
@@ -349,3 +403,40 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
             
         QtWidgets.QMessageBox.information(self, "Publish Complete", f"Published to {output_dir}")
         self.version_spinbox.setValue(version_num + 1)
+        
+    def _on_update_asset_selected(self, *args):
+        """Called when an asset is selected in the 'Update Existing' tree."""
+        
+        selected_items = self.update_asset_tree.selectedItems()
+        if not selected_items:
+            self.update_publish_button.setEnabled(False)
+            return
+        
+        item = selected_items[0]
+        #get the data we stored on the item
+        actor_data = item.data(0, QtCore.Qt.UserRole)
+        
+        #check if it's a valid department item (not a group)
+        if not actor_data or actor_data.get("is_group"):
+            self.update_publish_button.setEnabled(False)
+            return
+
+        #valid asset, enable button
+        self.update_publish_button.setEnabled(True)
+
+        #auto-set the next version
+        #get the current version string 
+        current_version_str = actor_data.get('version', 'v000')
+        try:
+            #convert to integer
+            current_version_num = int(current_version_str[1:])
+            #set the spinbox to the *next* version
+            self.update_version_spinbox.setValue(current_version_num + 1)
+        except:
+            #fallback if version string is formatted strangely
+            self.update_version_spinbox.setValue(1)
+        
+        #auto-set author from last publish
+        last_author = actor_data.get('author')
+        if last_author:
+            self.update_author_dropdown.setCurrentText(last_author)
