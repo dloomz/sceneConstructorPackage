@@ -1,8 +1,8 @@
+# Path: python/sceneConstructorPackage/ui/sceneConstructorUI.py
+
 import sys
 from PySide6 import QtCore, QtGui, QtWidgets
 from ..utils.fileUtils import open_in_native_explorer
-
-# Path: sceneConstructorPackage/python/sceneConstructorPackage/ui/sceneConstructorUI.py
 
 class sceneConstructor(QtWidgets.QWidget):
     """
@@ -12,30 +12,27 @@ class sceneConstructor(QtWidgets.QWidget):
     """
     
     #signals emitted by view
-    publishActorsClicked = QtCore.Signal()
     publishShotsClicked = QtCore.Signal()
-    
-    #emits list of selected actor data
     transferClicked = QtCore.Signal(list) 
     
-    #emits new scene name
     sceneSelected = QtCore.Signal(str) 
-    
-    #emits new shot name
     shotSelected = QtCore.Signal(str) 
     
-    #context menu signals
+    actorSelected = QtCore.Signal(dict)
+    
+    #context menu signal
     openPathRequested = QtCore.Signal(str)
-    deletePresetActorRequested = QtCore.Signal(QtWidgets.QTreeWidgetItem)
-    deleteShotActorRequested = QtCore.Signal(QtWidgets.QTreeWidgetItem)
+    deleteShotAssetRequested = QtCore.Signal(QtWidgets.QTreeWidgetItem)
     editItemRequested = QtCore.Signal(QtWidgets.QTreeWidgetItem, int)
     
+    #signal to controller when shot changed
+    shotVersionChanged = QtCore.Signal(QtWidgets.QTreeWidgetItem, str)
+
     def __init__(self, parent=None):
         super(sceneConstructor, self).__init__(parent)
         self.setWindowTitle('Scene Constructor')
-        self.resize(1000, 600)
+        self.resize(1000, 750) 
 
-        # Note: no DataManager, no state variables
         self.actor_types = ['camera', 'character', 'prop', 'set']
 
         self._build_ui()
@@ -44,7 +41,7 @@ class sceneConstructor(QtWidgets.QWidget):
     def _build_ui(self):
         """Constructs all UI widgets."""
         
-        #STYLING
+        # --- Styling ---
         self.setStyleSheet("""
             QWidget {
                 background-color: #333;
@@ -72,17 +69,24 @@ class sceneConstructor(QtWidgets.QWidget):
             QLabel {
                 font-weight: bold;
             }
+            QTextEdit {
+                background-color: #2b2b2b;
+                border: 1px solid #555;
+            }
+            QGroupBox {
+                font-weight: bold;
+            }
         """)
 
         # ========== Layout ==========
         main_layout = QtWidgets.QHBoxLayout(self)
 
-        # ---- Left column (Actors) ----
+        # ---- Left column (Assets) ----
         preset_layout = QtWidgets.QVBoxLayout()
-        preset_label = QtWidgets.QLabel('Actors')
+        preset_label = QtWidgets.QLabel('Assets')
 
         self.preset_table = QtWidgets.QTreeWidget()
-        self.preset_table.setHeaderLabels(['Preset', 'Value'])
+        self.preset_table.setHeaderLabels(['Asset', 'Info'])
         self.preset_table.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         self.preset_table.header().setStretchLastSection(True)
         self.preset_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
@@ -93,18 +97,36 @@ class sceneConstructor(QtWidgets.QWidget):
             typeGroup = QtWidgets.QTreeWidgetItem([types])
             self.preset_table.addTopLevelItem(typeGroup)
 
-        self.actorButton = QtWidgets.QPushButton('Publish Actors')
-
         preset_layout.addWidget(preset_label)
-        preset_layout.addWidget(self.preset_table)
-        preset_layout.addWidget(self.actorButton)
+        preset_layout.addWidget(self.preset_table, 2) 
+
+        # --- Actor Metadata Panel ---
+        self.metadata_group = QtWidgets.QGroupBox("Asset Metadata")
+        metadata_layout = QtWidgets.QVBoxLayout()
+        self.metadata_group.setLayout(metadata_layout)
+
+        self.snapshot_label = QtWidgets.QLabel("Select an asset department (GEO, RIG...)")
+        self.snapshot_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.snapshot_label.setMinimumHeight(200)
+        self.snapshot_label.setStyleSheet("background-color: #2b2b2b; border: 1px solid #555;")
+        
+        self.notes_label = QtWidgets.QLabel("Publish Notes:")
+        self.notes_display = QtWidgets.QTextEdit()
+        self.notes_display.setReadOnly(True)
+        self.notes_display.setFixedHeight(100)
+
+        metadata_layout.addWidget(self.snapshot_label)
+        metadata_layout.addWidget(self.notes_label)
+        metadata_layout.addWidget(self.notes_display)
+        
+        preset_layout.addWidget(self.metadata_group, 1)
 
         # ---- Right column (Shots) ----
         shot_layout = QtWidgets.QVBoxLayout()
         shot_label = QtWidgets.QLabel('Construct')
 
         self.shot_table = QtWidgets.QTreeWidget()
-        self.shot_table.setHeaderLabels(['Preset', 'Value'])
+        self.shot_table.setHeaderLabels(['Asset', 'Value'])
         self.shot_table.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         self.shot_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.shot_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -150,24 +172,29 @@ class sceneConstructor(QtWidgets.QWidget):
     def _connect_signals(self):
         """Connects widget signals to this class's signals."""
         
-        #button clicks
-        self.actorButton.clicked.connect(self.publishActorsClicked.emit)
+        #button
         self.shotButton.clicked.connect(self.publishShotsClicked.emit)
         self.transferButton.clicked.connect(self._on_transfer_clicked)
         
-        #dropdown changes
+        #dropdown
         self.construct_scene_dropdown.currentTextChanged.connect(self.sceneSelected.emit)
         self.construct_shot_dropdown.currentTextChanged.connect(self.shotSelected.emit)
         
-        #context menus
+        #context
         self.preset_table.customContextMenuRequested.connect(self._on_open_context_menu_presets)
         self.shot_table.customContextMenuRequested.connect(self._on_open_context_menu_shots)
 
-    #called by controller to update view
+        #actor select
+        self.preset_table.itemSelectionChanged.connect(self._on_actor_selection_changed)
+
+        #shot item changed (for version)
+        self.shot_table.itemChanged.connect(self._on_shot_item_changed)
+
+    #public slots
 
     @QtCore.Slot(list)
     def update_actor_tree(self, actor_data: list):
-        """Populates the actor preset tree."""
+        """Populates the asset preset tree."""
         self._populate_tree_widget(actor_data, self.preset_table)
         
     @QtCore.Slot(dict, str)
@@ -179,7 +206,6 @@ class sceneConstructor(QtWidgets.QWidget):
         
     @QtCore.Slot(list)
     def update_scene_dropdown(self, scenes: list):
-        """Populates the scene dropdown."""
         self.construct_scene_dropdown.blockSignals(True)
         self.construct_scene_dropdown.clear()
         self.construct_scene_dropdown.addItems(scenes)
@@ -187,7 +213,6 @@ class sceneConstructor(QtWidgets.QWidget):
 
     @QtCore.Slot(list)
     def update_shot_dropdown(self, shots: list):
-        """Populates the shot dropdown."""
         self.construct_shot_dropdown.blockSignals(True)
         self.construct_shot_dropdown.clear()
         self.construct_shot_dropdown.addItems(shots)
@@ -195,14 +220,12 @@ class sceneConstructor(QtWidgets.QWidget):
         
     @QtCore.Slot(str)
     def set_scene_dropdown(self, scene_name: str):
-        """Sets the current scene in the dropdown."""
         self.construct_scene_dropdown.blockSignals(True)
         self.construct_scene_dropdown.setCurrentText(scene_name)
         self.construct_scene_dropdown.blockSignals(False)
         
     @QtCore.Slot(str)
     def set_shot_dropdown(self, shot_name: str):
-        """Sets the current shot in the dropdown."""
         self.construct_shot_dropdown.blockSignals(True)
         self.construct_shot_dropdown.setCurrentText(shot_name)
         self.construct_shot_dropdown.blockSignals(False)
@@ -218,44 +241,122 @@ class sceneConstructor(QtWidgets.QWidget):
         """Uses the utility function to open a path."""
         open_in_native_explorer(path)
 
-    #helpers
+    @QtCore.Slot(QtGui.QPixmap)
+    def update_snapshot(self, pixmap: QtGui.QPixmap):
+        """Displays the loaded snapshot pixmap."""
+        if pixmap.isNull():
+            self.snapshot_label.setText("No Snapshot Found")
+            self.snapshot_label.setPixmap(QtGui.QPixmap()) # Clear it
+        else:
+            self.snapshot_label.setPixmap(pixmap.scaled(
+                self.snapshot_label.width(), 
+                self.snapshot_label.height(), 
+                QtCore.Qt.KeepAspectRatio, 
+                QtCore.Qt.SmoothTransformation
+            ))
+
+    @QtCore.Slot(str)
+    def update_actor_notes(self, note_text: str):
+        """Displays the loaded actor notes."""
+        self.notes_display.setText(note_text or "No notes found.")
+        
+    @QtCore.Slot(str)
+    def show_error_message(self, message: str):
+        """Shows a warning message box."""
+        QtWidgets.QMessageBox.warning(self, "Error", message)
+
+    @QtCore.Slot(QtWidgets.QTreeWidgetItem, dict)
+    def update_shot_item_version(self, item: QtWidgets.QTreeWidgetItem, new_data: dict):
+        """
+        Updates a shot item in the tree with new version data from the Controller.
+        'item' is the 'version' attribute item.
+        """
+        dept_item = item.parent()
+        if not dept_item:
+            return
+            
+        new_version = new_data.get('version')
+        new_path = new_data.get('path')
+        department = new_data.get('department')
+
+        self.shot_table.blockSignals(True)
+        
+        #update data stored on dept item
+        dept_item.setData(0, QtCore.Qt.UserRole, new_data)
+        
+        #update dept item display text
+        dept_item.setText(0, f"{department} ({new_version})")
+        
+        #update version item text
+        item.setText(1, new_version)
+        
+        #find and update path item
+        for i in range(dept_item.childCount()):
+            child = dept_item.child(i)
+            if child.text(0) == 'path':
+                child.setText(1, new_path)
+                break
+        
+        self.shot_table.blockSignals(False)
+
+    @QtCore.Slot(QtWidgets.QTreeWidgetItem, str)
+    def revert_shot_item_version(self, item: QtWidgets.QTreeWidgetItem, old_version: str):
+        """Reverts the text of a version item if the new version was invalid."""
+        self.shot_table.blockSignals(True)
+        item.setText(1, old_version)
+        self.shot_table.blockSignals(False)
+
+    #internal helpers
     
     def _populate_tree_widget(self, data, tree_widget):
-        """Helper to populate a QTreeWidget from Actor data."""
+        tree_widget.clear()
         
-        #clear all items, including categories
-        tree_widget.clear() 
-        
-        #add categories
         category_items = {}
         for type_name in self.actor_types:
             typeGroup = QtWidgets.QTreeWidgetItem([type_name])
             tree_widget.addTopLevelItem(typeGroup)
             category_items[type_name] = typeGroup
-            
-        for item in data:
-            item_type = item.get('type')
-            parent_item = category_items.get(item_type)
 
-            if not parent_item: 
+        asset_name_items = {} 
+
+        for item_data in data:
+            item_type = item_data.get('type')
+            asset_name = item_data.get('name')
+            department = item_data.get('department', 'unknown')
+
+            parent_category = category_items.get(item_type)
+            if not parent_category: 
                 continue
-            
-            name = item.get('name', 'Unknown')
-            child = QtWidgets.QTreeWidgetItem([name])
-            child.setFlags(child.flags() | QtCore.Qt.ItemIsEditable)
-            parent_item.addChild(child)
-            
-            #store data on the item for later retrieval
-            child.setData(0, QtCore.Qt.UserRole, item) 
 
-            #add child attributes (path, shot, etc.)
-            for key, val in item.items():
-                if key in ('type', 'name'):
+            asset_key = (item_type, asset_name)
+            parent_asset_item = asset_name_items.get(asset_key)
+
+            if not parent_asset_item:
+                parent_asset_item = QtWidgets.QTreeWidgetItem([asset_name])
+                parent_asset_item.setData(0, QtCore.Qt.UserRole, {"is_group": True, "name": asset_name})
+                parent_asset_item.setFlags(parent_asset_item.flags() & ~QtCore.Qt.ItemIsEditable)
+                parent_category.addChild(parent_asset_item)
+                asset_name_items[asset_key] = parent_asset_item
+
+            dept_item_name = f"{department} ({item_data.get('version', 'N/A')})"
+            dept_item = QtWidgets.QTreeWidgetItem([dept_item_name])
+            dept_item.setData(0, QtCore.Qt.UserRole, item_data) 
+            dept_item.setFlags(dept_item.flags() & ~QtCore.Qt.ItemIsEditable)
+            parent_asset_item.addChild(dept_item)
+
+            for key, val in item_data.items():
+                if key in ('type', 'name', 'department', 'note', 'snapshot'):
                     continue
                 
                 attr_child = QtWidgets.QTreeWidgetItem([key, str(val)])
-                attr_child.setFlags(attr_child.flags() | QtCore.Qt.ItemIsEditable)
-                child.addChild(attr_child)
+                
+                if tree_widget == self.shot_table and key == 'version':
+                    attr_child.setFlags(attr_child.flags() | QtCore.Qt.ItemIsEditable)
+                else:
+                    attr_child.setFlags(attr_child.flags() & ~QtCore.Qt.ItemIsEditable)
+                
+                dept_item.addChild(attr_child)
+
 
     def _on_transfer_clicked(self):
         """Gathers data from selected actors and emits signal."""
@@ -263,69 +364,90 @@ class sceneConstructor(QtWidgets.QWidget):
         selectedActors = self.preset_table.selectedItems()
 
         for item in selectedActors:
-            #get the data we stored on the item
-            item_data = item.data(0, QtCore.Qt.UserRole)
+            item_data = self._get_data_from_item(item)
             
-            #main actor item
-            if item_data: 
-                selected_items_data.append(item_data)
-                
-            elif item.parent() and item.parent().data(0, QtCore.Qt.UserRole):
-                #this is a child (like 'path'), get the parent's data
-                parent_data = item.parent().data(0, QtCore.Qt.UserRole)
-                if parent_data not in selected_items_data:
-                    selected_items_data.append(parent_data)
+            #only transfer if it's a loadable department, not a group
+            if item_data and not item_data.get("is_group"):
+                if item_data not in selected_items_data:
+                    selected_items_data.append(item_data)
 
         if selected_items_data:
             self.transferClicked.emit(selected_items_data)
 
     def get_all_data_from_tree(self, tree_widget: QtWidgets.QTreeWidget) -> list:
-        """Helper to convert a tree widget back into a list of actor dicts."""
+        """Helper to convert a tree widget back into a list of asset dicts."""
         output_data = []
-        for i in range(tree_widget.topLevelItemCount()):
+        
+        for i in range(tree_widget.topLevelItemCount()): # character, prop
             type_item = tree_widget.topLevelItem(i)
-            preset_type = type_item.text(0)
             
-            for j in range(type_item.childCount()):
-                name_item = type_item.child(j)
-                name = name_item.text(0)
-                entry = {"type": preset_type, "name": name}
-
-                for k in range(name_item.childCount()):
-                    attr_item = name_item.child(k)
-                    key = attr_item.text(0)
-                    val = attr_item.text(1)
-                    entry[key] = val
+            for j in range(type_item.childCount()): # Bob, Apple
+                asset_item = type_item.child(j)
                 
-                output_data.append(entry)
+                for k in range(asset_item.childCount()): # RIG, GEO
+                    dept_item = asset_item.child(k)
+                    
+                    #full, correct data is stored on the department item
+                    item_data = dept_item.data(0, QtCore.Qt.UserRole)
+                    if item_data and not item_data.get("is_group"):
+                        output_data.append(item_data)
+                        
         return output_data
 
-    #context menu handlers
+    def _get_data_from_item(self, item: QtWidgets.QTreeWidgetItem) -> dict | None:
+        """Helper to get the asset data from a selected item or its parent."""
+        if not item:
+            return None
+        
+        actor_data = item.data(0, QtCore.Qt.UserRole)
+        if actor_data:
+            return actor_data
+        
+        if item.parent():
+            actor_data = item.parent().data(0, QtCore.Qt.UserRole)
+            if actor_data:
+                return actor_data
+        if item.parent() and item.parent().parent():
+            actor_data = item.parent().parent().data(0, QtCore.Qt.UserRole)
+            if actor_data:
+                return actor_data
+                
+        return None
+
+    def _on_actor_selection_changed(self):
+        """Emits the data of the selected asset department."""
+        selected_items = self.preset_table.selectedItems()
+        if not selected_items:
+            self.actorSelected.emit({}) 
+            return
+        
+        item = selected_items[0]
+        actor_data = self._get_data_from_item(item)
+        
+        if not actor_data or actor_data.get("is_group"):
+            self.actorSelected.emit({})
+        else:
+            self.actorSelected.emit(actor_data)
+
+    # --- Context Menu Handlers ---
     
     def _on_open_context_menu_presets(self, position):
         item = self.preset_table.itemAt(position)
         if not item: return
 
         menu = QtWidgets.QMenu(self.preset_table)
-        
-        #only add "Edit" if it's an editable item (not a category)
-        if item.parent() is not None:
-            edit_action = menu.addAction("Edit")
-            edit_action.triggered.connect(lambda: self._on_edit_item(item))
+        actor_data = self._get_data_from_item(item)
+        if not actor_data: return
 
-        # only add "Open" if it's a 'path' item
+        #"Open" for 'path' items
         if item.text(0).lower() == "path" and item.parent() is not None:
-            open_action = menu.addAction("Open")
-            open_action.triggered.connect(
-                lambda: self.openPathRequested.emit(item.text(1))
-            )
-        
-        #only add "Delete" if it's an actor (not a category or attribute)
-        if item.parent() is not None and item.parent().parent() is not None:
-             delete_action = menu.addAction("Delete")
-             delete_action.triggered.connect(
-                 lambda: self.deletePresetActorRequested.emit(item)
-             )
+            self.openPathRequested.emit(item.text(1))
+
+        #"Open Publish Directory" for department items
+        if not actor_data.get("is_group") and "path" in actor_data:
+             open_asset_action = menu.addAction("Open Publish Directory")
+             file_path = Path(actor_data["path"])
+             open_asset_action.triggered.connect(lambda: self.openPathRequested.emit(str(file_path.parent)))
 
         if menu.actions():
             menu.exec_(self.preset_table.viewport().mapToGlobal(position))
@@ -335,30 +457,34 @@ class sceneConstructor(QtWidgets.QWidget):
         if not item: return
         
         menu = QtWidgets.QMenu(self.shot_table)
+        actor_data = self._get_data_from_item(item)
+        if not actor_data: return
+
+        #"Edit Version" for 'version' items
+        if item.text(0).lower() == "version" and item.parent() is not None:
+            menu.addAction("Edit Version").triggered.connect(
+                lambda: self.editItemRequested.emit(item, 1) # Edit column 1
+            )
 
         #"Open" for 'path' items
         if item.text(0).lower() == "path" and item.parent() is not None:
-            open_action = menu.addAction("Open")
-            open_action.triggered.connect(
+            menu.addAction("Open File Location").triggered.connect(
                 lambda: self.openPathRequested.emit(item.text(1))
             )
 
-        #"Delete" for actor items
-        if item.parent() is not None and item.parent().parent() is not None:
-             delete_action = menu.addAction("Delete")
-             delete_action.triggered.connect(
-                 lambda: self.deleteShotActorRequested.emit(item)
+        #"Delete" for department items
+        if actor_data and not actor_data.get("is_group") and item.parent().parent() is not None:
+             menu.addAction("Delete Asset").triggered.connect(
+                 lambda: self.deleteShotAssetRequested.emit(item)
              )
 
         if menu.actions():
             menu.exec_(self.shot_table.viewport().mapToGlobal(position))
             
-    def _on_edit_item(self, item):
-        """Internal helper to figure out which column to edit."""
-        label = item.text(0).lower()
-        #if it's an attribute (like 'path' or 'shot'), edit column 1 (value)
-        if label in ("path", "shot") and item.columnCount() > 1:
-            self.editItemRequested.emit(item, 1)
-        #otherwise, edit column 0 (name)
-        else:
-            self.editItemRequested.emit(item, 0)
+    def _on_shot_item_changed(self, item, column):
+        """
+        Emits a signal when an item in the shot tree is edited.
+        """
+        #only care if a 'version' attribute's text (col 1) was changed
+        if item.text(0) == 'version' and column == 1:
+            self.shotVersionChanged.emit(item, item.text(1))

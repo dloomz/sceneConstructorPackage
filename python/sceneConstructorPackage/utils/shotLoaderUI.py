@@ -7,7 +7,7 @@ from sceneConstructorPackage.core.data_manager import DataManager
 
 class ShotLoaderUI(object):
     def __init__(self):
-        # ❌ Hardcoded paths removed
+        #hardcoded paths removed
         self.data_manager = DataManager()
         self.window = "shotLoader"
         
@@ -48,7 +48,7 @@ class ShotLoaderUI(object):
         cmds.showWindow(self.window)
 
     def load_scenes(self):
-        # 🆕 Use DataManager
+        #DataManager
         scene_files = self.data_manager.get_scenes()
         scene_files.sort()
 
@@ -68,7 +68,7 @@ class ShotLoaderUI(object):
         self.load_shots_in_scenes(current_scene)
 
     def load_shots_in_scenes(self, current_scene):
-        # 🆕 Use DataManager
+        #use DataManager
         shotList = self.data_manager.get_shots_in_scene(current_scene)
         shotList.sort()
 
@@ -91,7 +91,7 @@ class ShotLoaderUI(object):
             cmds.warning("Please select a Scene and a Shot.")
             return
 
-        # 🆕 Use DataManager to load the shot data
+        #use DataManager to load the shot data
         _, shot_data_dict = self.data_manager.load_shot_data(
             current_selected_scene, current_selected_shot
         )
@@ -111,15 +111,15 @@ class ShotLoaderUI(object):
                 print(f"[WARN] Actor {actor_name} is missing a path. Skipping.")
                 continue
 
-            # 1. Determine Maya File Type and Namespace
+            # determine maya file type and namespace
             file_type = "file" 
             if path_to_import.lower().endswith(('.usd', '.usda', '.usdc')):
                 file_type = "USD Import"
-            # Add other format detection here (e.g., .fbx, .obj)
+            #TODO:add other format detection here (e.g., .fbx, .obj)
 
             namespace = f"{current_selected_shot}_{actor_name}"
             
-            # 2. Execute the Maya import command
+            #execute the Maya import command
             try:
                 cmds.file(
                     path_to_import,

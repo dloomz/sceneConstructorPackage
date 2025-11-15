@@ -20,7 +20,7 @@ JSON_PATH_ROOT = PROJECT_ROOT / 'Jsons'
 SCENE_ROOT = Path(os.environ.get('SCENE_DATA_ROOT', r'C:\Users\Dolapo\Desktop\python\static\25_footage\scene')) 
 
 # Root for where the ActorPublisher will save final asset versions (e.g., 30_assets)
-ASSET_PUBLISH_ROOT = Path(os.environ.get('ASSET_PUBLISH_ROOT', r'C:\Users\Dolapo\Desktop\python\static\30_assets'))
+ASSET_PUBLISH_ROOT = Path(os.environ.get('ASSET_PUBLISH_ROOT', r'O:\30_assets'))
 
 # Root for authors/users (used in the publisher UI)
 AUTHORS_ROOT = Path(os.environ.get('AUTHORS_ROOT', r'C:\Users\Dolapo\Desktop\python\static\00_pipeline\userPrefs'))
