@@ -13,15 +13,13 @@ if package_path not in sys.path:
     sys.path.append(package_path)
 # --------------------------------------------------------------------------
 
-# Use standard PySide6 imports
-from PySide6 import QtWidgets, QtCore, QtGui
-# Note: You may need to run 'pip install PySide6' if you don't have it.
+from PySide6 import QtWidgets, QtCore
 
-# Import the main UI class
-from sceneConstructorPackage.ui.sceneConstructorUI import sceneConstructor
+# Import the new MVC Controller
+from sceneConstructorPackage.ui.scene_constructor_controller import SceneConstructorController
 
 def run_ui():
-    print('Launching Scene Constructor UI')
+    print('Launching Scene Constructor UI (MVC)')
 
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
@@ -33,9 +31,9 @@ def run_ui():
         app = QtWidgets.QApplication(sys.argv)
         app_created = True 
 
-    # Launch the main window
-    window = sceneConstructor()
-    window.show()
+    # Launch the controller, which creates the model and view
+    controller = SceneConstructorController()
+    controller.run() # This will show the window
 
     # This keeps the window open.
     if app_created:
