@@ -10,7 +10,7 @@ import subprocess
 import re
 import unicodedata
 
-from tik_manager4.external import fileseq
+from ..external import fileseq
 
 CURRENT_PLATFORM = platform.system()
 

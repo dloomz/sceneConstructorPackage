@@ -25,9 +25,6 @@ ASSET_PUBLISH_ROOT = Path(os.environ.get('ASSET_PUBLISH_ROOT', r'O:\30_assets'))
 # Root for authors/users (used in the publisher UI)
 AUTHORS_ROOT = Path(os.environ.get('AUTHORS_ROOT', r'C:\Users\Dolapo\Desktop\python\static\00_pipeline\userPrefs'))
 
-# --- SPECIFIC FILE PATHS ---
-ACTORS_JSON = JSON_PATH_ROOT / 'actors.json'
-
 # Create necessary directories if they don't exist (helpful for first run)
 JSON_PATH_ROOT.mkdir(exist_ok=True)
 AUTHORS_ROOT.mkdir(exist_ok=True)

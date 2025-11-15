@@ -1,15 +1,11 @@
 # Path: python/sceneConstructorPackage/ui/actorPublisherUI.py
 
-import os
-import json
-import tempfile
-from datetime import datetime
-
 from PySide6 import QtWidgets, QtCore, QtGui
 import maya.cmds as cmds
 
 from sceneConstructorPackage.core.data_manager import DataManager
-from sceneConstructorPackage import config
+from .. import config
+
 # close existing window if re-run
 try:
     for widget in QtWidgets.QApplication.allWidgets():
