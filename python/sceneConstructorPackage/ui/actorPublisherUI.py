@@ -274,51 +274,77 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
 
         self.version_spinbox.setValue(max_version + 1)
         
+
     def capture_snapshot(self):
+
+        # Output path (playblast requires path WITHOUT extension)
         temp_dir = tempfile.gettempdir()
-        self.snapshot_path = os.path.join(temp_dir, "sc_snapshot.png")
+        base_path = os.path.join(temp_dir, "sc_snapshot")
+        final_png = base_path + ".png"
+
+        # Find the currently focused modelEditor panel
         model_panel = cmds.getPanel(withFocus=True)
-        if not model_panel or not cmds.getPanel(typeOf=model_panel) == 'modelPanel':
-            for panel in cmds.getPanel(visiblePanels=True):
-                if cmds.getPanel(typeOf=panel) == 'modelPanel':
-                    model_panel = panel
-                    break
-            else:
-                print("[ERROR] No 3D model panel found to snapshot.")
+        if not model_panel or cmds.getPanel(typeOf=model_panel) != "modelPanel":
+            # If focus isn't on a 3D view, fall back to the first model panel
+            panels = cmds.getPanel(type="modelPanel")
+            if not panels:
+                print("[ERROR] No 3D view found.")
                 self.snapshot_path = None
                 return
-        width = cmds.control(model_panel, query=True, width=True)
-        height = cmds.control(model_panel, query=True, height=True)
+            model_panel = panels[0]
+
+        # Get the current camera from the panel
         try:
-            cmds.modelEditor(model_panel, edit=True, grid=False, locators=False, joints=False, handles=False)
+            camera = cmds.modelEditor(model_panel, q=True, camera=True)
+        except:
+            print("[ERROR] Could not detect camera.")
+            self.snapshot_path = None
+            return
+
+        # Get panel size
+        parent = cmds.modelPanel(model_panel, q=True, control=True)
+        width = cmds.control(parent, q=True, width=True)
+        height = cmds.control(parent, q=True, height=True)
+
+        # Force refresh (avoids black playblast frames)
+        cmds.refresh(force=True)
+
+        try:
             cmds.playblast(
-                frame=cmds.currentTime(query=True),
-                format='image',
-                filename=self.snapshot_path,
+                frame=cmds.currentTime(q=True),
+                format="image",
+                filename=base_path,
                 forceOverwrite=True,
                 viewer=False,
                 widthHeight=(width, height),
                 percent=100,
                 quality=100,
-                compression='png'
+                compression="png",
+                camera=camera  # <<< ensures snapshot is from current camera
             )
+
+            self.snapshot_path = final_png
+            print(f"Snapshot saved: {self.snapshot_path}")
+
         except Exception as e:
-            print(f"[ERROR] Snapshot failed: {e}")
+            print("[ERROR] Playblast failed:", e)
             self.snapshot_path = None
-        finally:
-            cmds.modelEditor(model_panel, edit=True, grid=True)
+
 
     def display_snapshot(self, image_path):
+        
         if not image_path or not os.path.exists(image_path):
             self.snapshot_label.setText("Snapshot Failed")
             return
+
         pixmap = QtGui.QPixmap(image_path)
-        self.snapshot_label.setPixmap(pixmap.scaled(
-            self.snapshot_label.width(), 
-            self.snapshot_label.height(), 
-            QtCore.Qt.KeepAspectRatio, 
+        pixmap = pixmap.scaled(
+            self.snapshot_label.width(),
+            self.snapshot_label.height(),
+            QtCore.Qt.KeepAspectRatio,
             QtCore.Qt.SmoothTransformation
-        ))
+        )
+        self.snapshot_label.setPixmap(pixmap)
 
     def refresh_snapshot(self):
         self.capture_snapshot()
