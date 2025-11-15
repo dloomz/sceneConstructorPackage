@@ -308,28 +308,44 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
 
         # Force refresh (avoids black playblast frames)
         cmds.refresh(force=True)
+        current_frame = int(cmds.currentTime(q=True))
 
         try:
-            cmds.playblast(
-                frame=cmds.currentTime(q=True),
+            output_pattern = cmds.playblast(
+                frame=current_frame,
                 format="image",
-                filename=base_path,
+                filename=base_path, 
                 forceOverwrite=True,
                 viewer=False,
                 widthHeight=(width, height),
                 percent=100,
                 quality=100,
                 compression="png",
-                camera=camera  # <<< ensures snapshot is from current camera
+                showOrnaments=False 
             )
-
-            self.snapshot_path = final_png
-            print(f"Snapshot saved: {self.snapshot_path}")
+            
+            actual_file_path = None
+            
+            if "####" in output_pattern:
+                frame_str = "0000"
+                actual_file_path = output_pattern.replace("####", frame_str)
+                
+            elif "#" in output_pattern: 
+                frame_str = "0"
+                actual_file_path = output_pattern.replace("#", frame_str)
+            else:
+                print(f"[ERROR] Playblast returned an unexpected pattern: {output_pattern}")
+                
+            if actual_file_path and os.path.exists(actual_file_path):
+                self.snapshot_path = actual_file_path
+                print(f"Snapshot saved: {self.snapshot_path}")
+            else:
+                 print(f"[ERROR] Constructed path not found. Pattern was '{output_pattern}', constructed '{actual_file_path}'")
+                 self.snapshot_path = None
 
         except Exception as e:
             print("[ERROR] Playblast failed:", e)
             self.snapshot_path = None
-
 
     def display_snapshot(self, image_path):
         
