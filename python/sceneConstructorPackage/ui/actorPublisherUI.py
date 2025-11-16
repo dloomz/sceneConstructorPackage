@@ -377,17 +377,46 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
             self.selection_label.setStyleSheet("color: #DDD; font-style: normal;")
 
     def publish_action(self):
-        author = self.author_dropdown.currentText()
-        note = self.note_box.toPlainText().strip()
-        version_num = self.version_spinbox.value()
+        # --- Check which tab is active ---
+        current_tab_index = self.tab_widget.currentIndex()
+        
+        if current_tab_index == 0: # "Update Existing" tab
+            # Get data from the 'update' widgets
+            author = self.update_author_dropdown.currentText()
+            note = self.update_note_box.toPlainText().strip()
+            version_num = self.update_version_spinbox.value()
+            
+            # Get asset name and department from the selected item
+            selected_items = self.update_asset_tree.selectedItems()
+            if not selected_items:
+                QtWidgets.QMessageBox.warning(self, "Publish Error", "Please select an asset department to update.")
+                return
+            
+            item = selected_items[0]
+            actor_data = item.data(0, QtCore.Qt.UserRole)
+            
+            if not actor_data or actor_data.get("is_group"):
+                QtWidgets.QMessageBox.warning(self, "Publish Error", "Please select a valid asset department (e.g., GEO, RIG).")
+                return
+
+            actor_name = actor_data.get('name')
+            actor_logical_type = actor_data.get('type')
+            department = actor_data.get('department')
+
+        else: # "New Actor" tab
+            # Get data from the 'new' widgets
+            author = self.author_dropdown.currentText()
+            note = self.note_box.toPlainText().strip()
+            version_num = self.version_spinbox.value()
+            
+            actor_name = self.actor_name_line.text().strip()
+            actor_logical_type = self.actor_type_dropdown.currentText()
+            department = self.dept_dropdown.currentText()
+        
         version_str = f"v{version_num:03d}"
         
-        actor_name = self.actor_name_line.text().strip()
-        actor_logical_type = self.actor_type_dropdown.currentText()
-        department = self.dept_dropdown.currentText()
-        
         if not actor_name:
-            QtWidgets.QMessageBox.warning(self, "Publish Error", "Please enter an Actor Name.")
+            QtWidgets.QMessageBox.warning(self, "Publish Error", "Please enter or select an Actor Name.")
             return
 
         #DEFINE DIRECTORY AND BASE NAME
@@ -402,7 +431,13 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
         #SAVE SNAPSHOT
         snapshot_dest = output_dir / f"{base_name}_snapshot.png" 
         if self.snapshot_path and os.path.exists(self.snapshot_path):
-            cmds.sysFile(self.snapshot_path, copy=str(snapshot_dest))
+            try:
+                # Use copy2 from shutil for a more robust copy
+                import shutil
+                shutil.copy2(self.snapshot_path, str(snapshot_dest))
+            except Exception as e:
+                print(f"[WARN] Could not copy snapshot: {e}")
+                snapshot_dest = Path() # Set to empty path if copy fails
 
         # 3. EXPORT ASSET
         file_ext = "usd"
@@ -410,11 +445,20 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
         if department == "RIG":
             file_ext = "ma"
             file_type = "mayaAscii"
+        elif department == "GEO":
+            # Assuming GEO might also be Maya, or Alembic/USD
+            # This logic can be expanded
+            file_ext = "ma"
+            file_type = "mayaAscii"
             
         publish_path = output_dir / f"{base_name}.{file_ext}"
         
         selected = cmds.ls(selection=True) or []
-        if selected:
+        if not selected:
+            QtWidgets.QMessageBox.warning(self, "Publish Error", "Nothing selected to publish.")
+            return
+            
+        try:
             cmds.file(
                 str(publish_path),
                 force=True,
@@ -422,29 +466,37 @@ class ActorPublisherUI(QtWidgets.QMainWindow):
                 type=file_type,
                 exportSelected=True
             )
-        else:
-            QtWidgets.QMessageBox.warning(self, "Publish Error", "Nothing selected to publish.")
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Publish Failed", f"Failed to export Maya file: {e}")
             return
+
 
         # 4. WRITE METADATA
         now = datetime.now()
         meta = {
             "author": author,
             "type": actor_logical_type,
+            "name": actor_name,  # <--- THIS IS THE FIX
             "department": department,
             "date-published": now.strftime("%y-%m-%d"),
             "time-published": now.strftime("%H:%M"),
             "version": version_str,
             "note": note,
             "path": str(publish_path),     
-            "snapshot": str(snapshot_dest) 
+            "snapshot": str(snapshot_dest) if snapshot_dest.exists() else ""
         }
         json_path = output_dir / f"{base_name}_meta.json"
         with open(json_path, 'w') as f:
             json.dump(meta, f, indent=4)
             
         QtWidgets.QMessageBox.information(self, "Publish Complete", f"Published to {output_dir}")
-        self.version_spinbox.setValue(version_num + 1)
+        
+        # Refresh and increment version for the correct tab
+        if current_tab_index == 0:
+            self.update_version_spinbox.setValue(version_num + 1)
+            self.refresh_update_tree() # Refresh the tree to show new version
+        else:
+            self.version_spinbox.setValue(version_num + 1)
         
     def _on_update_asset_selected(self, *args):
         """Called when an asset is selected in the 'Update Existing' tree."""

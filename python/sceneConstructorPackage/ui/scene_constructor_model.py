@@ -108,6 +108,12 @@ class SceneConstructorModel(QtCore.QObject):
         
         return new_data
 
+    def get_all_versions(self, asset_name: str, department: str) -> list[str]:
+            """
+            Asks the DataManager for all versions of a specific asset/department.
+            """
+            return self.data_manager.get_all_versions_for_asset(asset_name, department)
+
     # --- State Setters ---
 
     def set_current_scene(self, scene_name: str):

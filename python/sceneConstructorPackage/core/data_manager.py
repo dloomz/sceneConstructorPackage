@@ -11,9 +11,8 @@ class DataManager:
     """
 
     def __init__(self):
-        pass # self.actors_path is no longer needed
+        pass 
 
-    # --- ACTOR PRESET METHODS ---
 
     def load_actors(self) -> list:
         """
@@ -65,6 +64,8 @@ class DataManager:
                         print(f"[ERROR] Could not read {meta_path}: {e}")
                         continue
                     
+                    meta_data['name'] = asset_name
+                    
                     loadable_path_str = meta_data.get('path')
                     if not loadable_path_str or not Path(loadable_path_str).exists():
                         print(f"[WARN] Skipping {asset_name}/{department}: 'path' in meta.json is missing or invalid.")
@@ -78,15 +79,39 @@ class DataManager:
         print(f"[INFO] Found {len(found_assets)} published asset departments.")
         return sorted(found_assets, key=lambda x: (x.get('name', ''), x.get('department', '')))
 
+    def get_all_versions_for_asset(self, asset_name: str, department: str) -> list[str]:
+        """
+        Scans the publish directory for an asset/department and returns
+        a sorted list of all found version strings (e.g., ['v001', 'v002']).
+        """
+        publish_dir = (
+            config.ASSET_PUBLISH_ROOT / 
+            asset_name / 
+            department / 
+            "PUBLISH"
+        )
+        
+        if not publish_dir.exists():
+            print(f"[WARN] No PUBLISH directory found at: {publish_dir}")
+            return []
+            
+        try:
+            versions = [
+                d.name for d in publish_dir.iterdir() 
+                if d.is_dir() and d.name.startswith('v')
+            ]
+            versions.sort()
+            return versions
+        except Exception as e:
+            print(f"[ERROR] Could not list versions for {asset_name}/{department}: {e}")
+            return []
 
-    # 🆕 --- NEW FUNCTION TO GET A SPECIFIC VERSION ---
     def get_asset_version_details(self, asset_name: str, department: str, version_str: str) -> dict | None:
         """
         Finds the meta.json for a specific asset version and returns its data.
         Returns None if the version or metadata doesn't exist.
         """
         
-        # 1. Build the path to the version directory
         version_dir = (
             config.ASSET_PUBLISH_ROOT / 
             asset_name / 
@@ -99,7 +124,6 @@ class DataManager:
             print(f"[WARN] Version not found: {version_dir}")
             return None
             
-        # 2. Find the meta.json file in that directory
         meta_files = list(version_dir.glob("*_meta.json"))
         if not meta_files:
             print(f"[WARN] No _meta.json found in {version_dir}")
@@ -107,12 +131,12 @@ class DataManager:
             
         meta_path = meta_files[0]
         
-        # 3. Read and return the data
         try:
             with open(meta_path, 'r') as f:
                 meta_data = json.load(f)
             
-            # 4. Verify the path in the meta file is valid
+            meta_data['name'] = asset_name
+
             loadable_path_str = meta_data.get('path')
             if not loadable_path_str or not Path(loadable_path_str).exists():
                 print(f"[WARN] Invalid path in {meta_path}: {loadable_path_str}")
@@ -123,24 +147,19 @@ class DataManager:
             print(f"[ERROR] Could not read {meta_path}: {e}")
             return None
 
-    # --- SCENE/SHOT MANAGEMENT METHODS ---
-    # (These methods remain unchanged)
-        
+    
     def get_scenes(self):
-        # ... (same as before)
         if not config.SCENE_ROOT.exists():
             return []
         return sorted([d.name for d in config.SCENE_ROOT.iterdir() if d.is_dir()])
 
     def get_shots_in_scene(self, scene_name: str):
-        # ... (same as before)
         scene_path = config.SCENE_ROOT / scene_name
         if not scene_path.exists():
             return []
         return sorted([d.name for d in scene_path.iterdir() if d.is_dir()])
 
     def load_shot_data(self, scene_name: str, shot_name: str) -> tuple[str, dict]:
-        # ... (same as before)
         shot_dir = config.SCENE_ROOT / scene_name / shot_name / 'SceneConstructor'
         
         if not shot_dir.exists():
@@ -165,7 +184,6 @@ class DataManager:
         return str(default_path), {}
 
     def save_shot_data(self, shot_json_path: str, shot_data: dict):
-        # ... (same as before)
         try:
             Path(shot_json_path).parent.mkdir(parents=True, exist_ok=True)
             with open(shot_json_path, "w") as f:
